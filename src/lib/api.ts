@@ -1,4 +1,13 @@
 import type { Developer, SiteSettings, MediaItem } from '../types';
+import {
+  getDevelopersFromFirestore,
+  saveDeveloperToFirestore,
+  deleteDeveloperFromFirestore,
+  reorderDevelopersInFirestore,
+  getSiteSettingsFromFirestore,
+  updateSiteSettingsInFirestore,
+  seedFirestoreIfEmpty
+} from './firestoreService';
 
 function getAuthToken(): string | null {
   return localStorage.getItem('hassty_admin_token');
@@ -24,7 +33,26 @@ function getHeaders(isMultipart = false): HeadersInit {
   return headers;
 }
 
+// Ensure Firestore is initialized with starter data
+seedFirestoreIfEmpty().catch((err) => console.warn('Firestore seed warning:', err));
+
+/**
+ * Fetch Developers:
+ * Queries Firestore first for direct real-time persistence, falls back to Express API
+ */
 export async function fetchDevelopers(): Promise<Developer[]> {
+  const token = getAuthToken();
+  const isAdmin = Boolean(token);
+
+  try {
+    const list = await getDevelopersFromFirestore(!isAdmin);
+    if (list && list.length > 0) {
+      return list;
+    }
+  } catch (err) {
+    console.warn('Firestore query failed, trying backend API:', err);
+  }
+
   const res = await fetch('/api/developers', {
     headers: getHeaders()
   });
@@ -40,70 +68,157 @@ export async function fetchDeveloperById(id: string): Promise<Developer> {
   return res.json();
 }
 
+/**
+ * Create Developer:
+ * Saves directly into Firestore and syncs to backend
+ */
 export async function createDeveloper(dev: Partial<Developer>): Promise<Developer> {
-  const res = await fetch('/api/developers', {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(dev)
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'فشل إضافة المطور');
+  try {
+    const saved = await saveDeveloperToFirestore(dev);
+    // Also notify backend in background for sync
+    fetch('/api/developers', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(saved)
+    }).catch(() => {});
+    return saved;
+  } catch (e) {
+    console.warn('Firestore save failed, falling back to Express API:', e);
+    const res = await fetch('/api/developers', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(dev)
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'فشل إضافة المطور');
+    }
+    return res.json();
   }
-  return res.json();
 }
 
+/**
+ * Update Developer:
+ * Updates in Firestore and backend
+ */
 export async function updateDeveloper(id: string, dev: Partial<Developer>): Promise<Developer> {
-  const res = await fetch(`/api/developers/${id}`, {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(dev)
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'فشل تحديث بيانات المطور');
+  try {
+    const saved = await saveDeveloperToFirestore({ ...dev, id });
+    fetch(`/api/developers/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(dev)
+    }).catch(() => {});
+    return saved;
+  } catch (e) {
+    console.warn('Firestore update failed, falling back to Express API:', e);
+    const res = await fetch(`/api/developers/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(dev)
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'فشل تحديث بيانات المطور');
+    }
+    return res.json();
   }
-  return res.json();
 }
 
+/**
+ * Delete Developer:
+ * Removes from Firestore and backend
+ */
 export async function deleteDeveloper(id: string): Promise<void> {
-  const res = await fetch(`/api/developers/${id}`, {
-    method: 'DELETE',
-    headers: getHeaders()
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'فشل حذف المطور');
+  try {
+    await deleteDeveloperFromFirestore(id);
+    fetch(`/api/developers/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('Firestore delete failed, falling back to Express API:', e);
+    const res = await fetch(`/api/developers/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'فشل حذف المطور');
+    }
   }
 }
 
+/**
+ * Reorder Developers:
+ * Updates sort_order in Firestore and backend
+ */
 export async function reorderDevelopers(orderedIds: string[]): Promise<Developer[]> {
-  const res = await fetch('/api/developers/reorder', {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ orderedIds })
-  });
-  if (!res.ok) throw new Error('فشل حفظ ترتيب المطورين');
-  return res.json();
+  try {
+    await reorderDevelopersInFirestore(orderedIds);
+    fetch('/api/developers/reorder', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ orderedIds })
+    }).catch(() => {});
+    return fetchDevelopers();
+  } catch (e) {
+    console.warn('Firestore reorder failed, falling back to Express API:', e);
+    const res = await fetch('/api/developers/reorder', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ orderedIds })
+    });
+    if (!res.ok) throw new Error('فشل حفظ ترتيب المطورين');
+    return res.json();
+  }
 }
 
+/**
+ * Fetch Site Settings:
+ * Queries Firestore first, falls back to Express API
+ */
 export async function fetchSiteSettings(): Promise<SiteSettings> {
+  try {
+    const settings = await getSiteSettingsFromFirestore();
+    if (settings && settings.site_name) {
+      return settings;
+    }
+  } catch (err) {
+    console.warn('Firestore settings fetch error:', err);
+  }
+
   const res = await fetch('/api/settings');
   if (!res.ok) throw new Error('فشل جلب إعدادات الموقع');
   return res.json();
 }
 
+/**
+ * Update Site Settings:
+ * Persists in Firestore and backend
+ */
 export async function updateSiteSettings(settings: Partial<SiteSettings>): Promise<SiteSettings> {
-  const res = await fetch('/api/settings', {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(settings)
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'فشل تحديث الإعدادات');
+  try {
+    const updated = await updateSiteSettingsInFirestore(settings);
+    fetch('/api/settings', {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(settings)
+    }).catch(() => {});
+    return updated;
+  } catch (e) {
+    console.warn('Firestore update settings failed, fallback to Express API:', e);
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(settings)
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'فشل تحديث الإعدادات');
+    }
+    return res.json();
   }
-  return res.json();
 }
 
 export async function uploadImage(file: File): Promise<{ url: string; filename: string }> {
@@ -170,4 +285,45 @@ export async function checkAuth(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Extracts file ID from various Google Drive share URLs
+ * Returns fileId and direct CDN preview link
+ */
+export function parseGoogleDriveUrl(url: string): { fileId: string | null; directUrl: string | null } {
+  if (!url || typeof url !== 'string') return { fileId: null, directUrl: null };
+  const trimmed = url.trim();
+  const match = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const fileId = match ? match[1] : null;
+  if (!fileId) return { fileId: null, directUrl: null };
+  return {
+    fileId,
+    directUrl: `https://lh3.googleusercontent.com/d/${fileId}`
+  };
+}
+
+/**
+ * Calls backend to import an image from Google Drive into local storage
+ */
+export async function importDriveImage(driveUrl: string): Promise<{
+  url: string;
+  directCdnUrl: string;
+  filename: string;
+  size: number;
+}> {
+  const res = await fetch('/api/import-drive-image', {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ driveUrl: driveUrl.trim() })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || 'فشل استيراد الصورة من Google Drive');
+  }
+
+  return data;
 }

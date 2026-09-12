@@ -3,5 +3,56 @@
 @layer base {
   body {
     font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+@keyframes ambientFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(12px, -14px) scale(1.04);
+  }
+}
+
+@keyframes ambientFloatAlt {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-14px, 16px) scale(0.96);
+  }
+}
+
+@keyframes subtleGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+}
+
+.animate-ambient-float {
+  animation: ambientFloat 14s ease-in-out infinite;
+}
+
+.animate-ambient-float-alt {
+  animation: ambientFloatAlt 18s ease-in-out infinite;
+}
+
+.animate-subtle-glow {
+  animation: subtleGlow 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

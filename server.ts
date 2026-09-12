@@ -252,6 +252,90 @@ async function startServer() {
     });
   });
 
+  // Media: Import Image from Google Drive (Admin only)
+  app.post('/api/import-drive-image', requireAuth, async (req, res) => {
+    try {
+      const { driveUrl } = req.body;
+      if (!driveUrl || typeof driveUrl !== 'string') {
+        return res.status(400).json({ error: 'يرجى إدخال رابط Google Drive صالح' });
+      }
+
+      // Extract fileId from common Google Drive link formats
+      const match = driveUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                    driveUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                    driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      const fileId = match ? match[1] : null;
+
+      if (!fileId) {
+        return res.status(400).json({
+          error: 'تعذر استخراج معرف الملف من الرابط. يرجى التأكد من نسخ رابط صالح من Google Drive.'
+        });
+      }
+
+      const cdnUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+      const downloadCandidates = [
+        cdnUrl,
+        `https://drive.google.com/uc?export=download&id=${fileId}`,
+        `https://drive.google.com/thumbnail?id=${fileId}&sz=w2048`
+      ];
+
+      let imageBuffer: Buffer | null = null;
+      let contentType = 'image/jpeg';
+
+      for (const targetUrl of downloadCandidates) {
+        try {
+          const response = await fetch(targetUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            redirect: 'follow'
+          });
+
+          if (response.ok) {
+            const mime = response.headers.get('content-type') || '';
+            if (mime.startsWith('image/')) {
+              contentType = mime;
+              const arrayBuffer = await response.arrayBuffer();
+              imageBuffer = Buffer.from(arrayBuffer);
+              break;
+            }
+          }
+        } catch {
+          // Continue to next candidate
+        }
+      }
+
+      if (!imageBuffer || imageBuffer.length === 0) {
+        return res.status(400).json({
+          error: 'تعذر تنزيل الصورة من Google Drive. يرجى التأكد من إعدادات مشاركة الملف في درايف: "أي شخص لديه الرابط" (Anyone with the link).',
+          directCdnUrl: cdnUrl,
+          fileId
+        });
+      }
+
+      let ext = '.jpg';
+      if (contentType.includes('png')) ext = '.png';
+      else if (contentType.includes('webp')) ext = '.webp';
+      else if (contentType.includes('svg')) ext = '.svg';
+      else if (contentType.includes('gif')) ext = '.gif';
+
+      const safeName = `drive-${Date.now()}-${fileId.substring(0, 8)}${ext}`;
+      const targetPath = path.join(UPLOADS_DIR, safeName);
+      fs.writeFileSync(targetPath, imageBuffer);
+
+      const fileUrl = `/uploads/${safeName}`;
+      res.json({
+        url: fileUrl,
+        directCdnUrl: cdnUrl,
+        filename: safeName,
+        size: imageBuffer.length,
+        mimetype: contentType
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'حدث خطأ أثناء استيراد الصورة' });
+    }
+  });
+
   // Media: List all uploaded files (Admin only)
   app.get('/api/media', requireAuth, (_req, res) => {
     try {

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Developer, SiteSettings } from '../../types';
-import { Users, Eye, EyeOff, Plus, Settings, ExternalLink, HardDrive, ShieldCheck } from 'lucide-react';
+import { Users, Eye, EyeOff, Plus, Settings, ExternalLink, HardDrive, ShieldCheck, Database, CheckCircle2 } from 'lucide-react';
 
 interface OverviewTabProps {
   developers: Developer[];
@@ -28,9 +28,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       {/* Top Banner with Quick Actions */}
       <div className="bg-gradient-to-l from-blue-600 to-blue-800 rounded-2xl p-6 sm:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs mb-3 text-blue-100">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>نظام إدارة محتوى فريق تطوير منصة حِصّتي</span>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-xs font-semibold backdrop-blur-xs text-blue-100">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>نظام إدارة محتوى فريق تطوير منصة حِصّتي</span>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-400/40 text-xs font-semibold text-emerald-100">
+              <Database className="w-3 h-3 text-emerald-300" />
+              <span>قاعدة بيانات Firebase السحابية متصلة ومفعلة</span>
+            </div>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold mb-1.5">
             مرحبًا بك في لوحة تحكم المنصة

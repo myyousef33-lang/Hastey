@@ -65,8 +65,11 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                 id="admin-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور (الافتراضية: admin123)"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="أدخل كلمة المرور (admin123)"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
                 autoFocus
                 required
@@ -80,9 +83,19 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <p className="mt-2 text-[11px] text-slate-400">
-              كلمة المرور الافتراضية للنظام التجريبي: <span className="font-mono text-slate-600 bg-slate-100 px-1 py-0.5 rounded">admin123</span>
-            </p>
+            <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
+              <span>كلمة المرور الافتراضية:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPassword('admin123');
+                  setError(null);
+                }}
+                className="font-mono text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
+              >
+                اضغط هنا لوضع admin123 تلقائيًا
+              </button>
+            </div>
           </div>
 
           <button

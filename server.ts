@@ -76,13 +76,16 @@ async function startServer() {
   // Auth: Login
   app.post('/api/auth/login', (req, res) => {
     const { password } = req.body;
+    console.log(`[AUTH] Login attempt received: "${password}"`);
     if (!password || !verifyPassword(password)) {
+      console.log(`[AUTH] Login failed for password: "${password}"`);
       return res.status(401).json({
         success: false,
         error: 'كلمة المرور غير صحيحة'
       });
     }
     const token = generateToken();
+    console.log(`[AUTH] Login succeeded for: "${password}"`);
     return res.json({ success: true, token });
   });
 

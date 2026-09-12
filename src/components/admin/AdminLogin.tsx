@@ -13,12 +13,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleQuickLogin = async () => {
-    setPassword('admin123');
+  const handleLoginWith = async (passToUse: string) => {
+    setPassword(passToUse);
     setError(null);
     setIsLoading(true);
     try {
-      await loginAdmin('admin123');
+      await loginAdmin(passToUse);
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'كلمة المرور غير صحيحة');
@@ -30,7 +30,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPw = password.trim();
-    if (!cleanPw) return;
+    if (!cleanPw) {
+      setError('يرجى إدخال كلمة المرور');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -98,15 +101,34 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
-              <span>كلمة المرور الافتراضية:</span>
-              <button
-                type="button"
-                onClick={handleQuickLogin}
-                className="font-mono text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
-              >
-                اضغط هنا للدخول المباشر (admin123)
-              </button>
+            <div className="mt-3 bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+              <div className="text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span>كلمات المرور المقبولة:</span>
+                <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">دخول سريع بنقرة واحدة</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleLoginWith('admin123')}
+                  className="text-xs font-mono bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
+                >
+                  admin123
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLoginWith('admin')}
+                  className="text-xs font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
+                >
+                  admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLoginWith('hassty123')}
+                  className="text-xs font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
+                >
+                  hassty123
+                </button>
+              </div>
             </div>
           </div>
 

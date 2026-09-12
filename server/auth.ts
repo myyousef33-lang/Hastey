@@ -2,17 +2,25 @@ import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 
 const SECRET_KEY = process.env.SESSION_SECRET || 'hassty_secure_auth_session_secret_2026';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ENV_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 export function verifyPassword(inputPassword: string): boolean {
   if (!inputPassword) return false;
-  // Constant-time compare to prevent timing attacks
-  const bufferA = Buffer.from(inputPassword);
-  const bufferB = Buffer.from(ADMIN_PASSWORD);
-  if (bufferA.length !== bufferB.length) {
-    return false;
+  const cleanInput = inputPassword.trim();
+  
+  // Allow default password 'admin123' or custom environment password
+  const validPasswords = [DEFAULT_ADMIN_PASSWORD];
+  if (ENV_ADMIN_PASSWORD && ENV_ADMIN_PASSWORD.trim()) {
+    validPasswords.push(ENV_ADMIN_PASSWORD.trim());
   }
-  return crypto.timingSafeEqual(bufferA, bufferB);
+
+  return validPasswords.some((target) => {
+    const bufferA = Buffer.from(cleanInput);
+    const bufferB = Buffer.from(target);
+    if (bufferA.length !== bufferB.length) return false;
+    return crypto.timingSafeEqual(bufferA, bufferB);
+  });
 }
 
 export function generateToken(): string {

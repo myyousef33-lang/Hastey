@@ -13,15 +13,30 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleQuickLogin = async () => {
+    setPassword('admin123');
+    setError(null);
+    setIsLoading(true);
+    try {
+      await loginAdmin('admin123');
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'كلمة المرور غير صحيحة');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim()) return;
+    const cleanPw = password.trim();
+    if (!cleanPw) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      await loginAdmin(password);
+      await loginAdmin(cleanPw);
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'كلمة المرور غير صحيحة');
@@ -87,13 +102,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
               <span>كلمة المرور الافتراضية:</span>
               <button
                 type="button"
-                onClick={() => {
-                  setPassword('admin123');
-                  setError(null);
-                }}
+                onClick={handleQuickLogin}
                 className="font-mono text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition font-medium cursor-pointer"
               >
-                اضغط هنا لوضع admin123 تلقائيًا
+                اضغط هنا للدخول المباشر (admin123)
               </button>
             </div>
           </div>

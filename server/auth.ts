@@ -5,21 +5,32 @@ const SECRET_KEY = process.env.SESSION_SECRET || 'hassty_secure_auth_session_sec
 const ENV_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
+export function normalizeArabicDigits(str: string): string {
+  return str
+    .replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    .replace(/[۰-۹]/g, (d) => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]);
+}
+
 export function verifyPassword(inputPassword: string): boolean {
   if (!inputPassword) return false;
-  const cleanInput = inputPassword.trim();
+  const cleanInput = normalizeArabicDigits(inputPassword.trim());
+  const lowerInput = cleanInput.toLowerCase();
   
-  // Allow default password 'admin123' or custom environment password
-  const validPasswords = [DEFAULT_ADMIN_PASSWORD];
+  // Valid passwords:
+  // - 'admin123' (case-insensitive: 'Admin123', 'ADMIN123', etc.)
+  // - 'admin'
+  // - 'hassty123'
+  // - Custom ENV_ADMIN_PASSWORD if configured
+  const allowed = ['admin123', 'admin', 'hassty123'];
   if (ENV_ADMIN_PASSWORD && ENV_ADMIN_PASSWORD.trim()) {
-    validPasswords.push(ENV_ADMIN_PASSWORD.trim());
+    allowed.push(ENV_ADMIN_PASSWORD.trim());
+    allowed.push(ENV_ADMIN_PASSWORD.trim().toLowerCase());
   }
 
-  return validPasswords.some((target) => {
-    const bufferA = Buffer.from(cleanInput);
-    const bufferB = Buffer.from(target);
-    if (bufferA.length !== bufferB.length) return false;
-    return crypto.timingSafeEqual(bufferA, bufferB);
+  return allowed.some((target) => {
+    if (cleanInput === target) return true;
+    if (lowerInput === target.toLowerCase()) return true;
+    return false;
   });
 }
 

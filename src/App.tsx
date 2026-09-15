@@ -71,7 +71,7 @@ export default function App() {
     }
   }, []);
 
-  // Check auth and initial route on mount
+  // Check auth and initial route on mount & hash changes
   useEffect(() => {
     async function initAuth() {
       const authenticated = await checkAuth();
@@ -79,12 +79,25 @@ export default function App() {
 
       // Check if URL specifies admin mode
       const params = new URLSearchParams(window.location.search);
-      if (params.get('admin') === 'true' || window.location.hash === '#admin') {
+      if (params.get('admin') === 'true' || window.location.hash === '#admin' || window.location.pathname === '/admin') {
         setView(authenticated ? 'admin' : 'login');
       }
     }
+
+    const handleHashChange = async () => {
+      const authenticated = await checkAuth();
+      if (window.location.hash === '#admin' || window.location.search.includes('admin=true')) {
+        setView(authenticated ? 'admin' : 'login');
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
     initAuth();
     loadData();
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, [loadData]);
 
   // Sync title and favicon dynamically with settings
